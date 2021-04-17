@@ -23,14 +23,10 @@ public class DeviceManerger : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        sp = new SerialPort("COM5", 115200);
-        //Serial
-        sp.Open();
-        sp.ReadTimeout = 20;
-        //if (SerialPort.GetPortNames().ToString().Contains("COM5"))
-        //{
-            
-        //}
+        //sp = new SerialPort("COM5", 115200);
+        ////Serial
+        //sp.Open();
+        //sp.ReadTimeout = 20;
         //find joint
         for (int i = 0; i < ActiveJoint.Length; i++)
         {
