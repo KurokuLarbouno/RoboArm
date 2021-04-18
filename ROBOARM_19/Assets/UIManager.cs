@@ -7,29 +7,35 @@ using TMPro;
 public class UIManager : MonoBehaviour
 {
     //Main Control
-    [SerializeField] MainCtrl MainManerger;
+     MainCtrl MainManerger;
     //顯示各關節數值
-    [SerializeField] GameObject JointInfo;          //母區塊
-    [SerializeField] GameObject Text_JointInfo;     //資訊寫入區
-    [SerializeField] GameObject Btn_JointInfo;      //展開/收闔收合鍵
+     GameObject JointInfo;          //母區塊
+     GameObject Text_JointInfo;     //資訊寫入區
+     GameObject Btn_JointInfo;      //展開/收闔收合鍵
     Vector3 vec_MoveJoint = new Vector3(-224, 0, 0);    //視窗位移量
     List<string> string_JointInfo;                  //資訊
     //Serial Consle
-    [SerializeField] GameObject SerialInfo;         //母區塊
-    [SerializeField] GameObject Text_SrlInfo;       //資訊寫入區
-    [SerializeField] GameObject Btn_SrlInfo;        //展開/收闔收合鍵
+     GameObject SerialInfo;         //母區塊
+     GameObject Text_SrlInfo;       //資訊寫入區
+     GameObject Btn_SrlInfo;        //展開/收闔收合鍵
     Vector3 vec_MoveSrl = new Vector3(-300, 0, 0);      //視窗位移量
     List<string> string_Serial;                     //資訊
+                                                    //Error
+    [SerializeField] GameObject ErrInfo;         //母區塊
+    [SerializeField] GameObject Text_ErrInfo;       //資訊寫入區
+    [SerializeField] GameObject Btn_Err;        //展開/收闔收合鍵
+    string string_Err = "";
     //各關節狀態顯示
-    [SerializeField] GameObject DeviceInfo;         //母區塊
+     GameObject DeviceInfo;         //母區塊
     [SerializeField] List<GameObject> DeviceSign;       //燈號
     //同步
-    [SerializeField] GameObject Btn_Sync;           //同步關節按鍵
+     GameObject Btn_Sync;           //同步關節按鍵
     bool isSync = false;
     //Tpose
-    [SerializeField] GameObject Btn_TPose;          //Tpose設定
+     GameObject Btn_TPose;          //Tpose設定
     //General
     Color clr_normal, clr_work = new Color(0, 255, 0), clr_error = new Color(255, 0, 0);
+    MainCtrl.GameStatus state = 0;
 
     public void ToggleJoint() //展開/收合console介面
     {
@@ -62,12 +68,48 @@ public class UIManager : MonoBehaviour
         Btn_TPose.GetComponent<Button>().interactable = true;
     }
 
+    private void ShowError()
+    {
+        ErrInfo.SetActive(true);
+    }
+
+    private void UpdateError()
+    {
+        if (MainManerger.newestPort.Contains("COM") && !Btn_Err.activeSelf)
+        {
+            Btn_Err.SetActive(true);
+            string_Err += MainManerger.newestPort;
+            Text_ErrInfo.GetComponent<TMP_Text>().text = string_Err;
+        }
+        else if (MainManerger.connectedPort.Contains("COM"))
+        {
+            EndError();
+        }
+    }
+
+    public void EndError()
+    {
+        MainManerger.EndErr();
+        Btn_Err.SetActive(false);
+        ErrInfo.SetActive(false);
+    }
+
     public void ToggleSync() 
     {
         if (MainManerger.MainStatus == MainCtrl.GameStatus.STANDBY) {Btn_Sync.GetComponent<Image>().color = clr_work; MainManerger.Sync(); }
         else if (MainManerger.MainStatus == MainCtrl.GameStatus.SYNC) { Btn_Sync.GetComponent<Image>().color = clr_normal; MainManerger.StandBy(); }
     }
 
+    private void DisableUI()
+    {
+        Btn_Sync.GetComponent<Button>().interactable = false;
+        Btn_TPose.GetComponent<Button>().interactable = false;
+    }
+    private void EnableUI()
+    {
+        Btn_Sync.GetComponent<Button>().interactable = true;
+        Btn_TPose.GetComponent<Button>().interactable = true;
+    }
     void Start()
     {
         //Main Manerger
@@ -81,6 +123,13 @@ public class UIManager : MonoBehaviour
         SerialInfo = GameObject.Find("SerialInfo");
         Text_SrlInfo = GameObject.Find("Text_SrlInfo");
         Btn_SrlInfo = GameObject.Find("Btn_Srl");
+
+        ErrInfo = GameObject.Find("ErrInfo");
+        Text_ErrInfo = GameObject.Find("Text_ErrInfo");
+        Btn_Err = GameObject.Find("Btn_Err");
+        Btn_Err.SetActive(false);
+        ErrInfo.SetActive(false);
+        string_Err = Text_ErrInfo.GetComponent<TMP_Text>().text;
 
         DeviceInfo = GameObject.Find("DeviceInfo");
         if (DeviceInfo != null)
@@ -99,31 +148,43 @@ public class UIManager : MonoBehaviour
         //Serial Info
         vec_MoveSrl.x = SerialInfo.GetComponent<RectTransform>().rect.width - 10;//保留部分UI暗示可以展開
         ToggleSerial();
-        //Button
+        //get Button color
         clr_normal = Btn_Sync.GetComponent<Image>().color;
 
     }
-        
 
     void Update()
     {
-        switch (MainManerger.MainStatus)
+        if (state != MainManerger.MainStatus)
         {
-            case MainCtrl.GameStatus.INITIAL:
-                //Debug.Log("INITIAL");
-                //disable UI
-            case MainCtrl.GameStatus.STANDBY:
-                //Debug.Log("STAND BY");
-                //ensable UI
-                break;
-            case MainCtrl.GameStatus.SYNC:
-                //Debug.Log("SYNC");
-                break;
-            case MainCtrl.GameStatus.TPOSE:
-                //Debug.Log("TPOSE");
-                //disable UI
+            switch (MainManerger.MainStatus)
+            {
+                case MainCtrl.GameStatus.INITIAL:
+                    DisableUI();
+                    if (state == MainCtrl.GameStatus.TPOSE) TposeFin();
+                    if (state == MainCtrl.GameStatus.ERROR) EndError();
+                    break;
+                case MainCtrl.GameStatus.STANDBY:
+                    EnableUI();
+                    break;
+                case MainCtrl.GameStatus.SYNC:
+                    break;
+                case MainCtrl.GameStatus.TPOSE:
+                    break;
+                case MainCtrl.GameStatus.ERROR:
+                    DisableUI();
+                    ShowError();
+                    break;
+            }
+        }
+        switch (state)
+        {
+            case MainCtrl.GameStatus.ERROR:
+                UpdateError();
                 break;
         }
+        state = MainManerger.MainStatus;        
+
         //text test
         string tmp = "";
         for (int i = 0; i < MainManerger.SerialMassage.Count; i++)

@@ -10,17 +10,23 @@ public class MainCtrl : MonoBehaviour
         INITIAL,    //最基礎初始化，設定連線及各項基礎數值
         STANDBY,    //連線及初始完成，可以閱讀感測資訊但還未連接動畫
         SYNC,       //演側連接動畫
-        TPOSE       //初始校正
+        TPOSE,      //初始校正
+        ERROR       //例外狀況
     } public GameStatus MainStatus = GameStatus.INITIAL;
     public struct JointPose
     {
-        int jointID;
-        Vector3 rotation;
-    } public List<JointPose> AllJoint;
-
+        public int jointID;
+        public Vector3 rotation;
+    } ;
+    [SerializeField]  public List<JointPose> AllJoint;
     //Serial
     public List<string> SerialMassage;
     int amount_MaxMas = 4;
+    public string[] workPorts;
+    public string connectedPort;
+    public string newestPort;
+    private bool isDevRdy = false;
+    public float delay_timer = 0.0f;
 
     public void UpdateSerail(string string_Incom)
     {
@@ -56,8 +62,27 @@ public class MainCtrl : MonoBehaviour
         Debug.Log("T-Pose");
         MainStatus = GameStatus.TPOSE;
     }
+
+    public void EndErr()
+    {
+        Debug.Log("EndErr");
+        MainStatus = GameStatus.INITIAL;
+    }
+
     //Device Manerger
-    public bool isDevRdy =false;
+    public void DevReady(string Com)
+    {
+        connectedPort = Com;
+        isDevRdy = true;
+    }
+    public void DevError(string Info)
+    {
+        isDevRdy = false;
+        connectedPort = "";
+        MainStatus = GameStatus.ERROR;
+        Debug.Log("Main Ctrl: " + Info);
+    }
+
 
     void Start()
     {

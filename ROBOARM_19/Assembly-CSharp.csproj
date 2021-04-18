@@ -65,7 +65,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\AnimCtrl.cs" />
-    <Compile Include="Assets\DeviceManerger.cs" />
+    <Compile Include="Assets\DeviceCtrl.cs" />
+    <Compile Include="Assets\DeviceTest.cs" />
     <Compile Include="Assets\FreeCamera.cs" />
     <Compile Include="Assets\MainCtrl.cs" />
     <Compile Include="Assets\MousePick.cs" />
