@@ -9,13 +9,13 @@ public class DeviceCtrl : MonoBehaviour
     //Main Control
     [SerializeField] MainCtrl MainManerger;
     //Serial
-    private SerialPort My_SerialPort;
-    private bool isTimerSet = false;
+    [SerializeField] SerialPort My_SerialPort = new SerialPort("CM6",115200);
     public List<string> receiveMassage;
     private int baudRate = 115200;
-    private bool isError = false;
+    public bool isError = false;
     //public string[] workPorts;
-    MainCtrl.GameStatus state = 0;
+    public MainCtrl.GameStatus state = 0;
+    bool isInitial = false;
 
     public void Port_Check()
     {
@@ -23,63 +23,86 @@ public class DeviceCtrl : MonoBehaviour
         if (MainManerger.workPorts.Length > 2)
         {
             MainManerger.newestPort = MainManerger.workPorts[MainManerger.workPorts.Length - 1];//以最新加入的port為加入者，通常預設會有兩個com
-        } 
+        }
+        else
+        {
+            MainManerger.newestPort = "";
+        }
     }
 
     public void Port_Connect()
     {
-        if (MainManerger.newestPort.Length > 0)
+        if (!My_SerialPort.IsOpen)
         {
-            try
+            if (MainManerger.newestPort.Length > 0)
             {
-                My_SerialPort = new SerialPort();
-
-                //設定 Serial Port 參數
-                My_SerialPort.PortName = MainManerger.newestPort;
-                My_SerialPort.BaudRate = baudRate;
-                My_SerialPort.ReadTimeout = 20;
-
-                My_SerialPort.Open();
-
-                if (My_SerialPort.IsOpen)
+                try
                 {
-                    MainManerger.DevReady(MainManerger.newestPort);
-                    this.CancelInvoke();
+                    My_SerialPort = new SerialPort();
+
+                    //設定 Serial Port 參數
+                    My_SerialPort.PortName = MainManerger.newestPort;
+                    My_SerialPort.BaudRate = baudRate;
+                    My_SerialPort.ReadTimeout = 5;
+
+                    My_SerialPort.Open();
+
+                    if (My_SerialPort.IsOpen)
+                    {
+                        MainManerger.DevReady(MainManerger.newestPort);
+                        isInitial = true;
+                        this.CancelInvoke();
+                        this.InvokeRepeating("ReadSerialBytes", 0.1f, 0.01f);
+                    }
+                }
+                catch
+                {
+                    Debug.Log("Console Connect Faild");
+                    this.Invoke("Port_Connect", 0.2f);
                 }
             }
-            catch
+            else
             {
-                Debug.Log("Console Connect Faild");
                 this.Invoke("Port_Connect", 0.2f);
             }
-        }
-        else
-        {
-            this.Invoke("Port_Connect", 0.2f);
-        }
+        }        
     }
 
     private void ReadSerialBytes()
     {
-        if (!My_SerialPort.IsOpen)
-        {
-            MainManerger.DevError("DevCtrl: Port Disconnect!");
-            return;
-        }
-        string str_Coming;
-        do
-        {
-            str_Coming = My_SerialPort.ReadLine();
-            if (str_Coming != null)
-            {
-                receiveMassage.Add(str_Coming);
-            }
-            else
-            {
-                Debug.Log(".");
-                break;
-            }
-        } while (str_Coming.Length > 0);
+        //Debug.Log( MainManerger.connectedPort);
+        //if (!My_SerialPort.IsOpen)
+        //{
+        //    DeviceErr();
+        //    return;
+        //}
+        //else
+        //{
+        //    string str_Coming;
+        //    //do
+        //    //{
+        //    //str_Coming = My_SerialPort.ReadLine();
+        //    //if (str_Coming.Length > 0) 
+        //    //    if (str_Coming != null)
+        //    //    {
+        //    //        receiveMassage.Add(str_Coming);
+        //    //    }
+        //    //    else
+        //    //    {
+        //    //        Debug.Log(".");
+        //    //        break;
+        //    //    }
+        //    //} while (str_Coming.Length > 0);
+        //}
+    }
+
+    private void DeviceErr()
+    {
+        isError = true;
+        isInitial = false;
+        My_SerialPort.Close();
+        this.CancelInvoke();
+        MainManerger.DevError("DevCtrl: Port Disconnect!");
     }
 
     private void ParseString()
@@ -150,6 +173,7 @@ public class DeviceCtrl : MonoBehaviour
         GameObject Main = GameObject.Find("MainCtrl");
         MainManerger = Main.GetComponent<MainCtrl>();
         //Serail
+        My_SerialPort.Close();
         Port_Check();
         if (MainManerger.newestPort != "")
         {
@@ -160,44 +184,56 @@ public class DeviceCtrl : MonoBehaviour
 
     void Update()
     {
+        if (My_SerialPort.IsOpen)
+        {
+            //con = true;
+            try
+            {
+                if (!isError) { var x = My_SerialPort.CtsHolding; }
+            }
+            catch (Exception)
+            {
+                DeviceErr();
+                throw;
+            }
+        }
         if (state != MainManerger.MainStatus)
         {
-            switch (state)
+            //Debug.Log("Trigger Test: " + MainManerger.MainStatus);
+            switch (MainManerger.MainStatus)
             {
                 case MainCtrl.GameStatus.INITIAL:
-                    if (My_SerialPort == null)
-                    {
-                        Port_Check();
-                        if (MainManerger.newestPort != "")
-                        {
-                            Debug.Log("DeviceCtrl: Trying to Connect " + MainManerger.newestPort);
-                            Port_Connect();
-                        }
-                    }
+
                     if (state == MainCtrl.GameStatus.ERROR)
                     {
+                        //Debug.Log("Port_Reset");
                         Port_Reset();
                     }
                     break;
+                case MainCtrl.GameStatus.ERROR:
+                    My_SerialPort.Close();
+                    break;
             }
         }
-        switch (state)
+        switch (MainManerger.MainStatus)
         {
             case MainCtrl.GameStatus.INITIAL:
-                Port_Check();
                 Port_Connect();
                 break;
             case MainCtrl.GameStatus.STANDBY:
             case MainCtrl.GameStatus.SYNC:
             case MainCtrl.GameStatus.TPOSE:
-                ReadSerialBytes();
-                //input data
-                ParseString();
+                if (isInitial == true)
+                {
+                    //input data
+                    ParseString();
+                }
                 break;
             case MainCtrl.GameStatus.ERROR:
-                Port_Check();
                 break;
         }
         state = MainManerger.MainStatus;
+
+        Port_Check();
     }
 }

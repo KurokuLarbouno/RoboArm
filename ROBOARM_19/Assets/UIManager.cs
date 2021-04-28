@@ -75,15 +75,15 @@ public class UIManager : MonoBehaviour
 
     private void UpdateError()
     {
-        if (MainManerger.newestPort.Contains("COM") && !Btn_Err.activeSelf)
+        string outputWords = string_Err + MainManerger.newestPort;
+        Text_ErrInfo.GetComponent<TMP_Text>().text = outputWords;
+        if (MainManerger.newestPort.Contains("COM"))
         {
-            Btn_Err.SetActive(true);
-            string_Err += MainManerger.newestPort;
-            Text_ErrInfo.GetComponent<TMP_Text>().text = string_Err;
+            if (!Btn_Err.activeSelf) Btn_Err.SetActive(true);
         }
-        else if (MainManerger.connectedPort.Contains("COM"))
+        else
         {
-            EndError();
+            Btn_Err.SetActive(false);
         }
     }
 
@@ -161,8 +161,6 @@ public class UIManager : MonoBehaviour
             {
                 case MainCtrl.GameStatus.INITIAL:
                     DisableUI();
-                    if (state == MainCtrl.GameStatus.TPOSE) TposeFin();
-                    if (state == MainCtrl.GameStatus.ERROR) EndError();
                     break;
                 case MainCtrl.GameStatus.STANDBY:
                     EnableUI();

@@ -59,13 +59,13 @@ public class MainCtrl : MonoBehaviour
     
     public void Tpose()
     {
-        Debug.Log("T-Pose");
+        Debug.Log("Main Ctrl: T-Pose");
         MainStatus = GameStatus.TPOSE;
     }
 
     public void EndErr()
     {
-        Debug.Log("EndErr");
+        Debug.Log("Main Ctrl: EndErr");
         MainStatus = GameStatus.INITIAL;
     }
 
