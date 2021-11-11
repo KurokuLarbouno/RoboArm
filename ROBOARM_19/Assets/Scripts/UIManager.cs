@@ -13,7 +13,6 @@ public class UIManager : MonoBehaviour
      GameObject Text_JointInfo;     //資訊寫入區
      GameObject Btn_JointInfo;      //展開/收闔收合鍵
     Vector3 vec_MoveJoint = new Vector3(-224, 0, 0);    //視窗位移量
-    List<string> string_JointInfo;                  //資訊
     //Serial Consle
      GameObject SerialInfo;         //母區塊
      GameObject Text_SrlInfo;       //資訊寫入區
@@ -28,14 +27,15 @@ public class UIManager : MonoBehaviour
     //各關節狀態顯示
      GameObject DeviceInfo;         //母區塊
     [SerializeField] List<GameObject> DeviceSign;       //燈號
+    MainCtrl.JointPose[] passedJoints = new MainCtrl.JointPose[3];
     //同步
-     GameObject Btn_Sync;           //同步關節按鍵
+    [SerializeField] GameObject Btn_Sync;           //同步關節按鍵
     bool isSync = false;
     //Tpose
-     GameObject Btn_TPose;          //Tpose設定
+    [SerializeField] GameObject Btn_TPose;          //Tpose設定
     //General
-    Color clr_normal, clr_work = new Color(0, 255, 0), clr_error = new Color(255, 0, 0);
-    MainCtrl.GameStatus state = 0;
+    Color clr_normal = Color.white, clr_work = new Color(0, 255, 0), clr_error = new Color(255, 0, 0);
+    MainCtrl.GameStatus state = MainCtrl.GameStatus.INITIAL;
 
     public void ToggleJoint() //展開/收合console介面
     {
@@ -89,6 +89,7 @@ public class UIManager : MonoBehaviour
 
     private void UpdateJoint()
     {
+        //更新讀取資料
         string outputWords = "";
         for (int i = 0; i < MainManerger.AllJoint.Length; i++)
         {
@@ -104,13 +105,28 @@ public class UIManager : MonoBehaviour
                     outputWords += "R_Arm\t";
                     break;
             }
-            outputWords += "X:"; outputWords += MainManerger.AllJoint[i].rotation.x;
-            outputWords += "Y:"; outputWords += MainManerger.AllJoint[i].rotation.y;
-            outputWords += "Z:"; outputWords += MainManerger.AllJoint[i].rotation.z; outputWords += "\n";
+            outputWords += "X:"; outputWords += MainManerger.AllJoint[i].rotation.x.ToString("000.0");
+            outputWords += "Y:"; outputWords += MainManerger.AllJoint[i].rotation.y.ToString("000.0");
+            outputWords += "Z:"; outputWords += MainManerger.AllJoint[i].rotation.z.ToString("000.0"); outputWords += "\n";
         }
         Text_JointInfo.GetComponent<TMP_Text>().text = outputWords;
     }
-
+    private void UpdateDeviceInfo()
+    {
+        //更新燈號
+        for (int i = 0; i < passedJoints.Length; i++)
+        {
+            if (passedJoints[i].rotation != MainManerger.AllJoint[i].rotation)
+            {
+                DeviceSign[i].GetComponent<Image>().color = Color.green;
+            }
+            else
+            {
+                DeviceSign[i].GetComponent<Image>().color = Color.red;
+            }
+            passedJoints[i] = MainManerger.AllJoint[i];
+        }        
+    }
     public void EndError()
     {
         MainManerger.EndErr();
@@ -188,11 +204,12 @@ public class UIManager : MonoBehaviour
                     DisableUI();
                     break;
                 case MainCtrl.GameStatus.STANDBY:
-                    EnableUI();
+                    EnableUI(); TposeFin();
                     break;
                 case MainCtrl.GameStatus.SYNC:
                     break;
                 case MainCtrl.GameStatus.TPOSE:
+                    DisableUI();
                     break;
                 case MainCtrl.GameStatus.ERROR:
                     DisableUI();
@@ -214,7 +231,7 @@ public class UIManager : MonoBehaviour
         }
         state = MainManerger.MainStatus;
         UpdateJoint();
-
+        UpdateDeviceInfo();
 
     }
 }

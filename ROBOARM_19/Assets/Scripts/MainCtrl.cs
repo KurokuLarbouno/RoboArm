@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class MainCtrl : MonoBehaviour
 {
+    const int JointAmount = 3;
     //Grneral Var
     public enum GameStatus
     {
@@ -18,7 +19,7 @@ public class MainCtrl : MonoBehaviour
         public int jointID;
         public Vector3 rotation;
     } ;
-    [SerializeField]  public JointPose[] AllJoint = new JointPose[3];
+    [SerializeField]  public JointPose[] AllJoint = new JointPose[JointAmount];
     //Serial
     public List<string> SerialMassage;
     int amount_MaxMas = 4;
@@ -26,7 +27,7 @@ public class MainCtrl : MonoBehaviour
     public string connectedPort;
     public string newestPort;
     private bool isDevRdy = false;
-    public float delay_timer = 0.0f;
+    public float FPS = 0.0f;
 
     public void UpdateSerail(string string_Incom)
     {
@@ -61,6 +62,11 @@ public class MainCtrl : MonoBehaviour
     {
         Debug.Log("Main Ctrl: T-Pose");
         MainStatus = GameStatus.TPOSE;
+    }
+
+    public void EndTpose()
+    {
+        StandBy();
     }
 
     public void EndErr()
@@ -107,6 +113,7 @@ public class MainCtrl : MonoBehaviour
      */
     void Update()
     {
+        FPS = 1.0f / Time.deltaTime;
         switch (MainStatus)
         {
             case GameStatus.INITIAL:

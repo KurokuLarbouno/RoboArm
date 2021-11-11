@@ -9,15 +9,22 @@ public class DeviceCtrl : MonoBehaviour
     //Main Control
     MainCtrl MainManerger;
     //Serial
-    [SerializeField] SerialPort My_SerialPort = new SerialPort("COM6",115200);
-    public List<string> receiveMassage;
+    [SerializeField] SerialPort My_SerialPort = new SerialPort("COM4",115200);
+    List<string> receiveMassage;
+    string[] singleReceiveMassage = new string[2];
     private int baudRate = 115200;
     bool isError = false;
+    //Mainctrl
     public MainCtrl.GameStatus state = 0;
+    //other variable
     bool isInitial = false;
     MainCtrl.JointPose inputPose;
     Quaternion inputQua;
-    public float data_time = 0.0f;
+    //Massage Per Second
+    float pass_time = 0;
+    int mcount = 0;
+    public float MPS = 0;
+
 
     public void Port_Check()
     {
@@ -36,7 +43,7 @@ public class DeviceCtrl : MonoBehaviour
     {
         if (!My_SerialPort.IsOpen)
         {
-            if (MainManerger.newestPort.Length > 0)
+            if (MainManerger.newestPort.Length > 2)
             {
                 try
                 {
@@ -54,7 +61,7 @@ public class DeviceCtrl : MonoBehaviour
                         MainManerger.DevReady(MainManerger.newestPort);
                         isInitial = true;
                         this.CancelInvoke();
-                        this.InvokeRepeating("ReadSerialBytes", 0.1f, 0.001f);
+                        this.InvokeRepeating("ReadSerialBytes", 0.1f, 0.0005f);
                     }
                 }
                 catch
@@ -75,14 +82,16 @@ public class DeviceCtrl : MonoBehaviour
     {
         if (My_SerialPort.BytesToRead > 0)
         {
-                        string str_Coming;
+            string str_Coming;
             str_Coming = My_SerialPort.ReadLine();
             if (str_Coming.Length > 0)
             {
-                receiveMassage.Add(str_Coming);
-                data_time = 0;
+                //receiveMassage.Add(str_Coming);
+                singleReceiveMassage[0] = str_Coming;
             }
-        }        
+        }
+        //ParseString();
+        sigleParseString();
     }
 
     private void nReadSerialBytes()
@@ -99,6 +108,12 @@ public class DeviceCtrl : MonoBehaviour
         }
     }
 
+    private void CountMPS()
+    {
+        MPS = mcount * 2;
+        mcount = 0;
+    }
+
     private void DeviceErr()
     {
         isError = true;
@@ -108,25 +123,81 @@ public class DeviceCtrl : MonoBehaviour
         MainManerger.DevError("DevCtrl: Port Disconnect!");
     }
 
+    private void sigleParseString()
+    {
+        if (singleReceiveMassage[1] != singleReceiveMassage[0])
+        {
+            string[] elements;
+            elements = singleReceiveMassage[0].Split(new char[] { ',' });//分解訊號 ID, w, x, y ,z
+            Quaternion inputQua = new Quaternion(0, 0, 0, 0);
+            if (elements.Length != 5){ singleReceiveMassage[1] = singleReceiveMassage[0]; return;}
+            for (int i = 0; i < elements.Length; i++)
+            {
+                float value = 0;        //數值
+
+                if (i == 0)
+                {
+                    try
+                    {
+                        int deviceId = int.Parse(elements[i]);
+                        inputPose.jointID = deviceId;
+                    }
+                    catch (Exception) { singleReceiveMassage[1] = singleReceiveMassage[0]; return;}
+                }
+                else
+                {
+                    try {value = float.Parse(elements[i]);}
+                    catch (Exception) { singleReceiveMassage[1] = singleReceiveMassage[0]; return;}
+                    switch (i)
+                    {
+                        case 1:
+                            inputQua.w = value;
+                            break;
+                        case 2:
+                            inputQua.x = -value;
+                            break;
+                        case 4:
+                            inputQua.y = -value;
+                            break;
+                        case 3:
+                            inputQua.z = -value;
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+            inputPose.rotation = inputQua.eulerAngles;
+            if (inputPose.jointID >= 0)
+            {
+                if (MainManerger.AllJoint.Length >= inputPose.jointID)
+                {
+                    MainManerger.AllJoint[inputPose.jointID - 1] = inputPose;
+                    mcount += 1;
+                }
+            }
+            singleReceiveMassage[1] = singleReceiveMassage[0];
+        }
+    }
+
     private void ParseString()
     {
         if (receiveMassage.Count > 0)
         {
-            MainManerger.delay_timer = 0;
-            string[] elements; 
+            string[] elements;
             elements = receiveMassage[0].Split(new char[] { ',' });//分解訊號 ID, w, x, y ,z
             Quaternion inputQua = new Quaternion(0, 0, 0, 0);
-            if(elements.Length != 5)
+            if (elements.Length != 5)
             {
-                //Debug.Log("+");
-                receiveMassage.RemoveAt(0);
+                //Debug.Log(elements.Length);
+                if (receiveMassage.Count > 0) receiveMassage.RemoveAt(0);
             }
             for (int i = 0; i < elements.Length; i++)
             {
                 float value = 0;        //數值
 
                 if (i == 0)
-                {                                       
+                {
                     try
                     {
                         int deviceId = int.Parse(elements[i]);
@@ -134,7 +205,7 @@ public class DeviceCtrl : MonoBehaviour
                     }
                     catch (Exception)
                     {
-                        receiveMassage.RemoveAt(0);
+                        if(receiveMassage.Count > 0) receiveMassage.RemoveAt(0);
                         //Debug.Log("X");
                         return;
                     }
@@ -147,7 +218,7 @@ public class DeviceCtrl : MonoBehaviour
                     }
                     catch (Exception)
                     {
-                        receiveMassage.RemoveAt(0);
+                        if (receiveMassage.Count > 0) receiveMassage.RemoveAt(0);
                         //Debug.Log("X");
                         return;
                     }
@@ -166,18 +237,24 @@ public class DeviceCtrl : MonoBehaviour
                             inputQua.z = -value;
                             break;
                         default:
-                            break;                       
+                            break;
                     }
                 }
             }
             inputPose.rotation = inputQua.eulerAngles;
-            if (inputPose.jointID != -1)
+            if (inputPose.jointID >= 0)
             {
-                MainManerger.AllJoint[inputPose.jointID - 1] = inputPose;
-                receiveMassage.RemoveAt(0);
+                if (MainManerger.AllJoint.Length >= inputPose.jointID)
+                { 
+                    MainManerger.AllJoint[inputPose.jointID - 1] = inputPose;
+                    mcount += 1;
+                }
+                if (receiveMassage.Count > 0) 
+                {
+                    receiveMassage.RemoveAt(0);
+                } 
             }
         }
-        MainManerger.delay_timer += Time.deltaTime;
     }
 
     private void Port_Reset()
@@ -199,12 +276,12 @@ public class DeviceCtrl : MonoBehaviour
         {
             Debug.Log("DeviceCtrl: Trying to Connect " + MainManerger.newestPort);
             Port_Connect();
-        }        
+        }
+        this.InvokeRepeating("CountMPS", 0.5f, 0.5f);
     }
 
     void Update()
     {
-        data_time += Time.deltaTime;//test
         if (My_SerialPort.IsOpen)
         {
             //con = true;
@@ -244,11 +321,6 @@ public class DeviceCtrl : MonoBehaviour
             case MainCtrl.GameStatus.STANDBY:
             case MainCtrl.GameStatus.SYNC:
             case MainCtrl.GameStatus.TPOSE:
-                if (isInitial == true)
-                {
-                    //input data
-                    ParseString();
-                }
                 break;
             case MainCtrl.GameStatus.ERROR:
                 break;
